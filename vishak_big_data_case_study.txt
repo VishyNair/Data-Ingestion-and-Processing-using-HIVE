@@ -1,0 +1,425 @@
+
+ADD JAR /opt/cloudera/parcels/CDH/lib/hive/lib/hive-hcatalog-core-1.1.0-cdh5.11.2.jar;
+-------------------------------------------------------------------------------------------------------------------------
+SET hive.exec.max.dynamic.partitions=100000;
+SET hive.exec.max.dynamic.partitions.pernode=100000;
+-------------------------------------------------------------------------------------------------------------------------
+--create table with the required parameters
+create external table if not exists nyc_yellow_taxi_souptik_vishak
+(vendorid int, tpep_pickup_datetime string, tpep_dropoff_datetime string, Passenger_count int, Trip_distance int,
+RateCodeID int, Store_and_fwd_flag string,PULocationID int, DOLocationID int,Payment_type int,Fare_amount double,
+Extra double,MTA_tax double,Tip_amount double,Tolls_amount double,Improvement_surcharge double,Total_amount double)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+location '/common_folder/nyc_taxi_data' tblproperties ("skip.header.line.count"="1");
+-------------------------------------------------------------------------------------------------------------------------
+select * from nyc_yellow_taxi_souptik_vishak limit 10;
+--Just to view the initial upload, by checking for 10 records.
+-------------------------------------------------------------------------------------------------------------------------
+-- Running the query to check all records 
+select count(*) from nyc_yellow_taxi_souptik_vishak;
+--1174569 rows
+-------------------------------------------------------------------------------------------------------------------------
+--number of entries/data from TPEP= Creative Mobile Technologies,LLC and VeriFone Inc
+select count(*) as N_counts, vendorid as TPEP_Provider from nyc_yellow_taxi_souptik_vishak group by vendorid; 
+--647183 rows by TPEP 2
+--527386 rows by TPEP 1
+-------------------------------------------------------------------------------------------------------------------------
+select avg(case when vendorid is null then 1.0 else 0.0 end) as vendor_id_null_p, 
+       avg(case when tpep_pickup_datetime is null then 1.0 else 0.0 end) as pickup_datetime_null_p,
+       avg(case when tpep_dropoff_datetime is null then 1.0 else 0.0 end) as drop_datetime_null_p,
+       avg(case when Passenger_count is null then 1.0 else 0.0 end) as passenger_count_null_p,
+       avg(case when Trip_distance is null then 1.0 else 0.0 end) as trip_distance_null_p,
+       avg(case when RateCodeID is null then 1.0 else 0.0 end) as rate_code_ID_null_p,
+       avg(case when Store_and_fwd_flag is null then 1.0 else 0.0 end) as store_fwd_null_p,
+       avg(case when PULocationID is null then 1.0 else 0.0 end) as rate_code_ID_null_p,
+       avg(case when DOLocationID is null then 1.0 else 0.0 end) as do_location_null_p,
+       avg(case when Payment_type is null then 1.0 else 0.0 end) as payment_type_null_p,
+       avg(case when Fare_amount is null then 1.0 else 0.0 end) as fare_amount_null_p,
+       avg(case when Extra is null then 1.0 else 0.0 end) as Extra_null_p,
+       avg(case when MTA_tax is null then 1.0 else 0.0 end) as MTA_tax_null_p,
+       avg(case when Tip_amount is null then 1.0 else 0.0 end) as Tip_amount_null_p,
+       avg(case when Tolls_amount is null then 1.0 else 0.0 end) as Tolls_amount_null_p,
+       avg(case when Improvement_surcharge is null then 1.0 else 0.0 end) as Improvement_surcharge_null_p,
+       avg(case when Total_amount is null then 1.0 else 0.0 end) as Total_amount_null_p
+from nyc_yellow_taxi_souptik_vishak;
+--From the above query we find that, there are no null values in any of the columns
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking passenger_count for pickup month and year as (Nov, Dec) and 2017 respectively
+select passenger_count, count(*) from nyc_yellow_taxi_souptik_vishak 
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') group by passenger_count;
+--We can see that there are around 6824 records which are with passenger_count as zero and hence needs to be removed.
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking if the the passenger_count has null value for pickup month and year as (Nov, Dec) and 2017 respectively
+select count(*) from nyc_yellow_taxi_souptik_vishak 
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and passenger_count is null;
+--no null values
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking if the trip distance has zero or negative value for pickup month and year as (Nov, Dec) and 2017 respectively
+select count(*) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and (trip_distance = 0 or trip_distance < 0);
+--305601 rows observed where trip distance is 0 or less than 0.
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking if the trip distance has NULL value for pickup month and year as (Nov, Dec) and 2017 respectively
+select count(*) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and trip_distance is null;
+-- No NULL Value
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking RateCodeID for pickup month and year as (Nov, Dec) and 2017 respectively
+select RateCodeID, count(*) from nyc_yellow_taxi_souptik_vishak 
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') group by RateCodeID;
+-- We can see that ratecodeid 99 also exists and it is not valid one
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking store_and_fwd_flag for pickup month and year as (Nov, Dec) and 2017 respectively
+select store_and_fwd_flag, count(*) from nyc_yellow_taxi_souptik_vishak 
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') group by store_and_fwd_flag;
+-- No issue in this column
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking PULocationID for NULL values for pickup month and year as (Nov, Dec) and 2017 respectively
+select count(*) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and PULocationID is null;
+-- No NULL Value
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking DOLocationID for NULL values for pickup month and year as (Nov, Dec) and 2017 respectively
+select count(*) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and DOLocationID is null;
+-- No NULL Value
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking payment_type for pickup month and year as (Nov, Dec) and 2017 respectively
+select payment_type, count(*) from nyc_yellow_taxi_souptik_vishak 
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') group by payment_type;
+-- No issue in this column
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking payment_type for pickup month and year as (Nov, Dec) and 2017 respectively
+select payment_type, count(*) from nyc_yellow_taxi_souptik_vishak 
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and payment_type is null group by payment_type;
+--no null values
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking if the fare_amount column has negative or zero amount for pickup month and year as (Nov, Dec) and 2017 respectively
+select count(*) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and fare_amount <= 0;
+--870 total rows
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking from which vendor this erroneous rows are coming
+select distinct(vendorid) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and fare_amount <= 0;
+--From Both the Vendor
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking if the extra column has negative values for pickup month and year as (Nov, Dec) and 2017 respectively
+select count(*) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and extra < 0;
+-- 4835 total rows
+--select extra,count(*) as count_n from nyc_yellow_taxi_souptik_vishak
+--where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12')
+--group by extra;
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking from which vendor this erroneous rows are coming
+select distinct(vendorid) from nyc_yellow_taxi
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and extra < 0;
+--From Both the Vendor
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking if the mta_tax column has other than 0 or 0.5 value for pickup month and year as (Nov, Dec) and 2017 respectively
+select count(*) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and mta_tax not in (0.5, 0);
+-- 548 total rows
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking from which vendor this erroneous rows are coming
+select distinct(vendorid) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and mta_tax not in (0.5, 0);
+--From Both the Vendor
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking if the tip_amount column has negative value for pickup month and year as (Nov, Dec) and 2017 respectively
+select count(*) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and tip_amount < 0;
+-- 4 total rows
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking from which vendor this erroneous rows are coming
+select distinct(vendorid) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and tip_amount < 0;
+--From 2nd Vendor i.e. VeriFone Inc.
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking if the tolls_amount column has negative value for pickup month and year as (Nov, Dec) and 2017 respectively
+select count(*) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and tolls_amount < 0;
+-- 3 total rows
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking from which vendor this erroneous rows are coming
+select distinct(vendorid) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and tolls_amount < 0;
+--From 2nd Vendor i.e. VeriFone Inc.
+-------------------------------------------------------------------------------------------------------------------------
+select count(*) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and improvement_surcharge !=0.30
+-- 849 total rows
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking from which vendor this erroneous rows are coming
+select distinct(vendorid) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and improvement_surcharge != 0.30;
+--From both the vendor
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking if the total_amount column has value other negative or zero value for pickup month and year as (Nov, Dec) and 2017 respectively
+select count(*) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and total_amount <= 0;
+-- 681 total rows
+-------------------------------------------------------------------------------------------------------------------------
+-- Checking from which vendor this erroneous rows are coming
+select distinct(vendorid) from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and total_amount <= 0;
+--From both the vendor
+-------------------------------------------------------------------------------------------------------------------------
+select count(*) as count_n from nyc_yellow_taxi_souptik_vishak 
+where trip_distance > 0 and tpep_pickup_datetime = tpep_dropoff_datetime;
+--We can see that there are 562 such records with distance>0 but trip start date-time is same as trip end date-time
+-------------------------------------------------------------------------------------------------------------------------
+
+
+---------------*******************************************************************************************-------------------
+---------------*******************************************************************************************-------------------
+---------------------------------Following assumptions have been made for the following--------------------------------------
+---------------*******************************************************************************************-------------------
+---------------*******************************************************************************************-------------------
+--1. We can see that there are around 6824 records which are with passenger_count as zero and hence needs to be removed.
+--2. The trip distance were observed to be 0 or less than zero which is wrong as trip distance is assumed to be 
+-----greater than 0. There are 305601 such records.
+--3. Ratecode is observed to be 99, which is not correct and hence will be removed. There are 9 such records.
+-----Ratecode_ID are numbers from 1-9
+--4. Fareamount is observed to be less than or equal to zero for 870 observations , and hence it will be removed as it means
+-----no distance was travelled. There are 870 total rows.
+--5. Toll amount has been observed to be less than zero for 3 observations, hence will be removed.
+--6. Extra fare has been observed to be less than zero for 4835 observations, hence will be removed.
+--7. Mta_tax has been observed to be outside a range of 0 to 0.5 $ for 548 observations, hence will be removed.
+--8. Tip_amount has been observed to be less than zero for 4 observations, hence will be removed.
+--9. Total_amount has been observed to be less than zero for 681 observations, hence will be removed.
+--10.Improvement_surcharge has been observed to be other than 0.3 $ for 849 observations, hence will be removed.
+--11.There are 562 records for which the trip distance is greater than 0, but the trip start time is exactly same as trip end date.
+--   which looks erroneous.
+
+-------------------------------------------------------------------------------------------------------------------------
+-- PARTITION THE DATA  
+SET hive.exec.max.dynamic.partitions=100000;
+SET hive.exec.max.dynamic.partitions.pernode=100000;
+-------------------------------------------------------------------------------------------------------------------------
+--Creating the ORC table
+
+create external table if not exists nyc_yellow_taxi_souptik_vishak_partition_orc
+(vendorid int, tpep_pickup_datetime string, tpep_dropoff_datetime string, Passenger_count int, Trip_distance int,
+RateCodeID int, Store_and_fwd_flag string,PULocationID int, DOLocationID int,Payment_type int,Fare_amount double,
+Extra double,MTA_tax double,Tip_amount double,Tolls_amount double,Improvement_surcharge double,Total_amount double)
+--partitioned by (year(from_unixtime(tpep_pickup_datetime)) int, month(from_unixtime(tpep_pickup_datetime)) int)
+partitioned by (yr int,mnth int)
+stored as orc 
+location '/user/hive/warehouse/souptik_vishak_partition_orc_2'
+tblproperties ("orc.compress"="SNAPPY");
+-------------------------------------------------------------------------------------------------------------------------
+--Writing Data into ORC table
+--Here we are writing from the initial external table nyc_yellow_taxi_souptik_vishak with conditions as mentioned above
+--to remove error all the error records.
+--Again all these records would be for the months November and December for the year 2017.
+--We are partitioning the table here based on the year and month extracted from the pickup datetime field.
+insert overwrite table nyc_yellow_taxi_souptik_vishak_partition_orc partition(yr , mnth)
+select vendorid, tpep_pickup_datetime, tpep_dropoff_datetime, Passenger_count, Trip_distance,
+RateCodeID, Store_and_fwd_flag,PULocationID, DOLocationID,Payment_type,Fare_amount,
+Extra,MTA_tax,Tip_amount,Tolls_amount,Improvement_surcharge,Total_amount,
+year(tpep_pickup_datetime) as yr,month(tpep_pickup_datetime) as mnth
+from nyc_yellow_taxi_souptik_vishak
+where substr(tpep_pickup_datetime, 1, 7) in('2017-11','2017-12') and
+passenger_count > 0 and trip_distance > 0 and
+RateCodeID != 99 and fare_amount > 0 and
+extra >=0 and mta_tax in (0.5,0) and
+tip_amount >= 0 and tolls_amount >= 0 and 
+improvement_surcharge = 0.30 and total_amount > 0 and
+(trip_distance > 0 and tpep_pickup_datetime != tpep_dropoff_datetime);
+-------------------------------------------------------------------------------------------------------------------------
+--Just an initial check on the table to find out the number of records in the dataset.
+select count(*) from nyc_yellow_taxi_souptik_vishak_partition_orc;
+--There are 863373 or 8.63 Lakh records present in the orc table which we created after removing the error records.
+-------------------------------------------------------------------------------------------------------------------------
+--Viewing the newly created table
+--select * from nyc_yellow_taxi_souptik_vishak_partition_orc
+--limit 10;
+-------------------------------------------------------------------------------------------------------------------------
+---------------*******************************************************************************************---------------
+---------------*******************************************************************************************---------------
+-------------------------------------------------------Analysis-I--------------------------------------------------------
+---------------*******************************************************************************************---------------
+---------------*******************************************************************************************---------------
+--************************************************************************
+--1. Compare the overall average fare per trip for November and December.
+--************************************************************************
+select mnth as Month_value,avg(Fare_amount) as Average_Fare from nyc_yellow_taxi_souptik_vishak_partition_orc
+group by mnth
+order by mnth;
+--Here the Average Fare per trip for November is 15.50 and for December is 15.33. The average fare is more or less same for
+--both the months.
+--************************************************************************
+--2. Explore the ‘number of passengers per trip’ - how many trips are made by each level of ‘Passenger_count’? 
+--   Do most people travel solo or with other people?
+--************************************************************************
+select Passenger_count,count(Passenger_count) as count_value from nyc_yellow_taxi_souptik_vishak_partition_orc
+group by Passenger_count
+order by Passenger_count;
+--Passenger_count     Count
+--         1          607627
+--         2          133492
+--         3          38179
+--         4          19059
+--         5          40535
+--         6          24480
+--         7          1
+-- We can see the count/number of passengers per trip as above. Most of the passengers are solo travellers as many as 607627.
+--************************************************************************
+--3. Which is the most preferred mode of payment?
+--************************************************************************
+select Payment_type,count(Payment_type) as How_many_payed from nyc_yellow_taxi_souptik_vishak_partition_orc
+group by Payment_type
+order by Payment_type;
+--Payment_type        How_many_payed
+--       1                 600598
+--       2                 258645
+--       3                 3182
+--       4                 948
+-- We can clearly see that the most preferred mode of payment is payment type 1 which is credit card,followed by 2 which is
+-- Cash.There are 3182 trips happened without any charge and 948 ones ended up in Dispute in payment.
+--************************************************************************
+--4. What is the average tip paid per trip? Compare the average tip with the 25th, 50th and 75th percentiles and comment 
+--   whether the ‘average tip’ is a representative statistic (of the central tendency) of ‘tip amount paid’. 
+--   Hint: You may use percentile_approx(DOUBLE col, p): Returns an approximate pth percentile of a numeric column 
+--   (including floating point types) in the group.
+--************************************************************************
+select round(avg(Tip_amount),2) as avg_tip,round(percentile_approx(Tip_amount,0.25),2) as percentile_25, 
+round(percentile_approx(Tip_amount,0.50),2) as percentile_50,round(percentile_approx(Tip_amount,0.75),2) as percentile_75 
+from nyc_yellow_taxi_souptik_vishak_partition_orc;
+-- Here the percentile_approx function was used to find out the percentiles and answers rounded off to 2 decimal places
+-- Avg Tip amount is 2.19
+-- 25th Percentile -> 0 
+-- 50th Percentile -> 1.76
+-- 75th Percentile -> 2.95
+-- We can observe that the average tip amount comes in the range of 50th percentile and 75th percentile.
+--************************************************************************
+--5. Explore the ‘Extra’ (charge) variable - what fraction of total trips have an extra charge is levied?
+--************************************************************************
+--select Extra,count(Extra) as count_value from nyc_yellow_taxi_souptik_vishak_partition_orc
+--group by Extra
+--order by Extra;
+-- Extra         Count_value
+--   0              450285
+--  0.5             285312
+--   1              123565
+--  1.5             2
+--  4.5             4209
+select round(sum(case when Extra!=0 then 1 else 0 end)/count(*),4) as countof_extra_not_zero
+from nyc_yellow_taxi_souptik_vishak_partition_orc;
+-- We can see that for around 47.85% of the total trips, extra charge has been levied
+-------------------------------------------------------------------------------------------------------------------------
+---------------*******************************************************************************************---------------
+---------------*******************************************************************************************---------------
+-------------------------------------------------------Analysis-II-------------------------------------------------------
+---------------*******************************************************************************************---------------
+---------------*******************************************************************************************---------------
+--************************************************************************
+--1. What is the correlation between the number of passengers on any given trip, and the tip paid per trip? 
+--   Do multiple travellers tip more compared to solo travellers? Hint: Use CORR(Col_1, Col_2)
+--************************************************************************
+select round(corr(Passenger_count,Tip_amount),3) as n_passengers_tip_paid_corr 
+from nyc_yellow_taxi_souptik_vishak_partition_orc;
+--We can see that the correlation between the number of passengers and tip paid per trip is -0.007 that means we can say
+--almost there is no correlation or weak negative correlation between the two or in other terms, multiple travellers or
+--solo travellers tip more or less same. We can check this out with below query.
+select avg(case when Passenger_count=1 then Tip_amount else null end) as tip_by_solo,
+avg(case when Passenger_count=2 then Tip_amount else null end) as tip_by_2,
+avg(case when Passenger_count=3 then Tip_amount else null end) as tip_by_3,
+avg(case when Passenger_count=4 then Tip_amount else null end) as tip_by_4,
+avg(case when Passenger_count=5 then Tip_amount else null end) as tip_by_5,
+avg(case when Passenger_count=6 then Tip_amount else null end) as tip_by_6,
+avg(case when Passenger_count=7 then Tip_amount else null end) as tip_by_7,
+avg(case when Passenger_count!=1 then Tip_amount else null end) as tip_by_multiple_travellers
+from nyc_yellow_taxi_souptik_vishak_partition_orc;
+-- We can see clearly there is no correlation pattern between the passengers and the tip given and the average tip given by
+-- passengers vary only by a small amount as below
+-- Tip_by_solo    -> 1.56
+-- Tip_by_2       -> 0.34
+-- Tip_by_3       -> 0.09
+-- Tip_by_4       -> 0.04
+-- Tip_by_5       -> 0.11
+-- Tip_by_6       -> 0.06
+-- Tip_by_7       -> 1.70
+-- Tip_by_multiple-> 0.64
+--************************************************************************
+--2. Segregate the data into five segments of ‘tip paid’: [0-5), [5-10), [10-15) , [15-20) and >=20. 
+--   Calculate the percentage share of each bucket (i.e. the fraction of trips falling in each bucket).
+--************************************************************************
+select tip_paid_buckets, count(*)as count_n, max(records_count)as Total_Number_Records, 
+round(count(*)/max(records_count),5)as Tip_Bucket_fraction
+from (select nyc_orc.*, count(*) over () records_count,
+	CASE when tip_amount >= 0 and tip_amount <5 then '0_5_Bucket' 
+	when tip_amount >=5 and tip_amount < 10 then '5_10_Bucket'
+	when tip_amount >=10 and tip_amount < 15 then '10_15_Bucket'
+	when tip_amount >=15 and tip_amount < 20 then '15_20_Bucket'
+	else 'above20_Bucket' 
+	end as tip_paid_buckets 
+    from nyc_yellow_taxi_souptik_vishak_partition_orc nyc_orc)as sub_tbl
+group by tip_paid_buckets
+order by Tip_Bucket_fraction desc;
+--We obtained the below results
+-- tip_paid_buckets  count_n     total_number_records     tip_bucket_fraction
+--    0_5_Bucket      773894             863373                  0.89636
+--    5_10_Bucket      64911             863373                  0.07518
+--    10_15_Bucket     21010             863373                  0.02433
+--    15_20_Bucket      2554             863373                  0.00296
+--    above20_Bucket    1004             863373                  0.00116
+-- We can see that the major share of about 89.63% travellers have paid tips in range 0 to 5. All the other bucket tips paid
+-- seems to be very low. Also we know that Cash tips are not included in the paid tips.
+-- Cash tips are of payment type 2. We can remove these and check again what is the fraction of trips falling in each bucket.
+select tip_paid_buckets, count(*)as count_n, max(records_count)as Total_Number_Records, 
+round(count(*)/max(records_count),5)as Tip_Bucket_fraction
+from (select nyc_orc.*, count(*) over () records_count,
+	CASE when tip_amount >= 0 and tip_amount <5 then '0_5_Bucket' 
+	when tip_amount >=5 and tip_amount < 10 then '5_10_Bucket'
+	when tip_amount >=10 and tip_amount < 15 then '10_15_Bucket'
+	when tip_amount >=15 and tip_amount < 20 then '15_20_Bucket'
+	else 'above20_Bucket' 
+	end as tip_paid_buckets 
+    from nyc_yellow_taxi_souptik_vishak_partition_orc nyc_orc)as sub_tbl
+where sub_tbl.Payment_type!=2
+group by tip_paid_buckets
+order by Tip_Bucket_fraction desc;
+--We obtained the below results after removing the cash payment types
+-- tip_paid_buckets  count_n     total_number_records     tip_bucket_fraction
+--    0_5_Bucket      515249             863373                  0.59679
+--    5_10_Bucket      64911             863373                  0.07518
+--    10_15_Bucket     21010             863373                  0.02433
+--    15_20_Bucket      2554             863373                  0.00296
+--    above20_Bucket    1004             863373                  0.00116
+-- Hence even after removing the cash payment trips we can see that major fraction of trips payed tip in the range 0 to 5.
+--************************************************************************
+--3. Which month has a greater average ‘speed’ - November or December? 
+--   Note that the variable ‘speed’ will have to be derived from other metrics. Hint: You have columns for distance and time.
+--************************************************************************
+select 
+round(avg(case when mnth=11 then (Trip_distance/((unix_timestamp(tpep_dropoff_datetime)-unix_timestamp(tpep_pickup_datetime))/3600)) else null end),3)as Avg_SpeedinMPH_Nov, 
+round(avg(case when mnth=12 then (Trip_distance/((unix_timestamp(tpep_dropoff_datetime)-unix_timestamp(tpep_pickup_datetime))/3600)) else null end),3)as Avg_SpeedinMPH_Dec 
+from nyc_yellow_taxi_souptik_vishak_partition_orc;
+-- Here we have found out the Average speed with the trip distance and dropoff and pickup times. From data dictionary we can see
+-- the trip distance is given in Miles, hence to standardise we have converted the time in seconds to hours and hence avg speed
+-- is in MPH.
+-- avg_speedinmph_nov   avg_speedinmph_dec
+--        9.986                 10.1
+-- Average speed is more or less same in both the months.
+--************************************************************************
+--4. Analyse the average speed of the most happening days of the year, 
+--   i.e. 31st December (New year’s eve) and 25th December (Christmas) and compare it with the overall average. 
+--************************************************************************
+SELECT 
+round(avg(CASE when mnth=12 and day(tpep_pickup_datetime)=25 THEN (Trip_distance/((unix_timestamp(tpep_dropoff_datetime)-unix_timestamp(tpep_pickup_datetime))/3600)) ELSE null end),3)as Avg_SpeedinMPH_Xmas, 
+round(avg(CASE when mnth=12 and day(tpep_pickup_datetime)=31 THEN (Trip_distance/((unix_timestamp(tpep_dropoff_datetime)-unix_timestamp(tpep_pickup_datetime))/3600)) ELSE null end),3)as Avg_SpeedinMPH_New_Year, 
+round(avg(CASE when mnth in (11,12) THEN (Trip_distance/((unix_timestamp(tpep_dropoff_datetime)-unix_timestamp(tpep_pickup_datetime))/3600)) ELSE null end),3)as Avg_SpeedinMPH_Overall_avg
+from nyc_yellow_taxi_souptik_vishak_partition_orc;
+-- avg_speedinmph_xmas  avg_speedinmph_new_year  avg_speedinmph_overall_avg
+--        14.01                 12.257                    10.044
+-- We can see that the Average speed is the maximum on Chirstmas day followed by New year day. Both these days average speed is
+-- more than the Overall average speed.
+
+
+
+
+
+
